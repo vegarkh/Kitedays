@@ -19,17 +19,14 @@ for i in urls :
     df = pd.DataFrame(json_data['Data'], columns=['Time','WindAvg','DirectionAvg'])
     print(df)
     data.append(df)
-#problem: lager datoer som ikke finnes -> gir feilmelding
-#mulig løsning: bruke datetime-pakke:
-#(https://stackoverflow.com/questions/13784192/creating-an-empty-pandas-dataframe-then-filling-it)
 
-# colors = []
-# for x in list(df['WindAvg']) :
-#     if x>5.5 :
-#         colors.append('g')
-#     else :
-#         colors.append('r')
-#
-# plt.scatter(df['Time'],df['WindAvg'],c=colors)
-# plt.grid()
-# plt.show()
+colors = []
+for x in list(df['WindAvg']) :
+    if x>5.5 :
+        colors.append('g')
+    else :
+        colors.append('r')
+
+plt.scatter(df['Time'],df['WindAvg'],c=colors)
+plt.grid()
+plt.show()
