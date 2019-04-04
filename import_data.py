@@ -6,7 +6,6 @@ import pandas as pd
 
 #generate dates (DateTimeIndex)
 d = pd.date_range(start='5/31/2018', end='5/31/2018',freq='D')
-print(d)
 #remove time from d
 dates = d.date
 #make a list of urls representing each date
@@ -29,7 +28,6 @@ for i in urls :
     df['Kitewind'] = np.nan
     #set 'Time' as index
     df.set_index('Time', inplace=True, drop = False)
-    #add dataframe df to the list data
     #Each element in this list is supposed to be a DataFrame consisting of
     #wind data from a spesific date
     data.append(df)
