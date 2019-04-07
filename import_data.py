@@ -1,6 +1,5 @@
 # Import packages
 import requests
-import numpy as np
 import pandas as pd
 from flask import Flask, request, jsonify
 
@@ -9,7 +8,7 @@ app = Flask(__name__)
 
 
 @app.route('/kite-days/<int:station>')
-def get_n_kiteable_days(station):
+def get_n_kite_days(station):
     params = {}
 
     for param in ['startDate', 'endDate']:
@@ -21,19 +20,12 @@ def get_n_kiteable_days(station):
             })
 
     # generate dates (DateTimeIndex)
-    d = pd.date_range(start=params['startDate'], end=params['endDate'], freq='D')
+    dates = pd.date_range(start=params['startDate'], end=params['endDate'], freq='D').date
 
-    # remove time from d
-    dates = d.date
-
-    # make a list of urls representing each date
-    urls = []
-    for date in dates:
-        urls.append('http://vindsiden.no/api/stations/{}?n=100&date={}'.format(station, date))
-
-    data = []
     # import data from API: http://vindsiden.no/api/stations/...
-    for url in urls:
+    kite_days = 0
+    for date in dates:
+        url = 'http://vindsiden.no/api/stations/{}?n=100&date={}'.format(station, date)
         r = requests.get(url)
         json_data = r.json()
 
@@ -43,37 +35,25 @@ def get_n_kiteable_days(station):
         # convert the column 'Time' to datetime format
         df['Time'] = pd.to_datetime(df['Time'])
 
-        # make a new column "Kitewind"
-        df['Kitewind'] = np.nan
-
         # set 'Time' as index
-        df.set_index('Time', inplace=True, drop=True)
+        df.set_index('Time', inplace=True)
 
-        # Each element in this list is supposed to be a DataFrame consisting of
-        # wind data from a spesific date
-        data.append(df)
+        # create a subset of day (exclude night)
+        day = pd.DataFrame(data=df.between_time('05:00', '20:00'))
 
-    # make a new list with wind data from time 07:00AM - 22:00PM in a list, data_day.
-    # Consider the wind data to be two hours delayed (05:00AM in data corresponds to 7:00AM in real time)
-    data_days = []
+        # list readings within wind average and direction average limits
+        kite_wind = [i > 6 and 225 > j > 135 for i, j in
+                     zip(day.loc[:, 'WindAvg'], day.loc[:, 'DirectionAvg'])]
 
-    for day in data:
-        relevant = pd.DataFrame(data=day.between_time('05:00', '20:00'), copy=True)
-        data_days.append(relevant)
+        # consider "good kite day" if n entries within limits is above 6
+        if sum(kite_wind) > 6:
+            kite_days += 1
 
-    number_of_kitedays = 0
-
-    for data_day in data_days:
-        data_day.loc[:, 'Kitewind'] = [i > 6 and 225 > j > 135 for i, j in
-                                       zip(data_day.loc[:, 'WindAvg'], data_day.loc[:, 'DirectionAvg'])]
-        if sum(data_day['Kitewind']) > 6:
-            number_of_kitedays += 1
-
-    msg = "During the period from %s to %s, there was %d kiteable days" % (dates[0],
-                                                                           dates[-1], number_of_kitedays)
+    msg = "During the period from %s to %s, there were %d good kite days" % (dates[0],
+                                                                             dates[-1], kite_days)
     return jsonify({
         "msg": msg,
-        "number_of_kitedays": number_of_kitedays
+        "kite_days": kite_days
     })
 
 
