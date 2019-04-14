@@ -41,8 +41,13 @@ def get_n_kite_days(station):
         # create a subset of day (exclude night)
         day = pd.DataFrame(data=df.between_time('05:00', '20:00'))
 
+<<<<<<< HEAD
         # list readings within wind speed average (m/s) and direction average (degrees) limits
         kite_wind = [speed > 6 and 225 > direction > 135 for speed, direction in
+=======
+        # list readings within wind average and direction average limits
+        kite_wind = [i > 6 and 225 > j > 135 for i, j in
+>>>>>>> 8b206d0ea0053b8d85ba4a797b8ea7185abdd641
                      zip(day.loc[:, 'WindAvg'], day.loc[:, 'DirectionAvg'])]
 
         # consider "good kite day" if n entries within limits is above 6
