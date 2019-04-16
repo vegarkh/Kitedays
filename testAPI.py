@@ -2,7 +2,6 @@
 import requests
 import pandas as pd
 from flask import Flask, request, jsonify
-from requests_futures.sessions import FuturesSession
 
 # Flask app global
 app = Flask(__name__)
@@ -23,24 +22,12 @@ def get_n_kite_days(station):
     # generate dates (DateTimeIndex)
     dates = pd.date_range(start=params['startDate'], end=params['endDate'], freq='D').date
 
-    num_workers = 100
-    session = FuturesSession(max_workers = num_workers)
-
-    #make a list of urls
-    urls = []
-    for date in dates:
-        urls.append('http://vindsiden.no/api/stations/{}?n=100&date={}'.format(station, date))
-
-    # load data from API: http://vindsiden.no/api/stations/...
-    #start requests asynchronous
-    future_dates = []
-    for url in urls:
-        future_dates.append(session.get(url))
-
+    # import data from API: http://vindsiden.no/api/stations/...
     kite_days = 0
-    for future_date in future_dates:
-        response_date = future_date.result()
-        json_data = response_date.json()
+    for date in dates:
+        url = 'http://vindsiden.no/api/stations/{}?n=100&date={}'.format(station, date)
+        r = requests.get(url)
+        json_data = r.json()
 
         # make a DataFrame with columns time, wind speed and wind direction
         df = pd.DataFrame(json_data['Data'], columns=['Time', 'WindAvg', 'DirectionAvg'])
