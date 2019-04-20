@@ -26,16 +26,12 @@ def get_n_kite_days(station):
     num_workers = 100
     session = FuturesSession(max_workers = num_workers)
 
-    #make a list of urls
-    urls = []
-    for date in dates:
-        urls.append('http://vindsiden.no/api/stations/{}?n=100&date={}'.format(station, date))
-
-    # load data from API: http://vindsiden.no/api/stations/...
-    #start requests asynchronous
+    #loads wind data for each date, asynchronous
     future_dates = []
-    for url in urls:
-        future_dates.append(session.get(url))
+    [future_dates.append(session.get('http://vindsiden.no/api/stations/{}?n=100&date={}'.format(station, date))) for date in dates]
+    # future_dates = []
+    # for date in dates:
+    #     future_dates.append(session.get('http://vindsiden.no/api/stations/{}?n=100&date={}'.format(station, date)))
 
     kite_days = 0
     for future_date in future_dates:
