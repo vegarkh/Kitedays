@@ -2,10 +2,11 @@ import requests
 import pandas as pd
 from fastparquet import write, ParquetFile
 from tqdm import tqdm
+from datetime import datetime
 
 # set period for loading wind data
-startDate = '4/18/2018'
-endDate = '4/18/2018'
+startDate = '1/26/2017'
+endDate = '1/26/2017'
 
 # set station (place) for loading wind data
 station = '3'
@@ -28,6 +29,9 @@ with tqdm(total=len(dates)) as pbar:
         df = pd.DataFrame(json_data['Data'], columns=['Time', 'StationID', 'WindAvg', 'WindStDev', 'WindMax', 'WindMin',
                                                       'DirectionAvg', 'DirectionStDev', 'Temperature1'])
 
+        # if DataFrame is empty, add rows with NaN-values at 7:00 and 22:00
+
+
         # convert the column 'Time' to datetime format
         df['Time'] = pd.to_datetime(df['Time'])
 
@@ -41,26 +45,43 @@ with tqdm(total=len(dates)) as pbar:
         df = df.sort_index()
 
         # create a subset of day (exclude night)
-        day = pd.DataFrame(data=df.between_time('07:00', '22:00'))
+        day = pd.DataFrame(data=df.between_time('06:59', '22:00'))
 
-        time_diff = day.index.to_series().diff()
+        # some preparing for resampling data
+        # read time for the first measurement and compare to 7:00
+        day_first = day.first_valid_index()
+        seven_am = datetime(day_first.year, day_first.month, day_first.day, 7, 0, 0)
+        seven_am = pd.to_datetime(seven_am).tz_localize('Europe/Oslo')
+        time_gap_morning = day_first - seven_am
+
+        # read time for the last measurement and compare to 22:00
+        day_last = day.last_valid_index()
+        ten_pm = datetime(day_last.year, day_last.month, day_last.day, 22, 0, 0)
+        ten_pm = pd.to_datetime(ten_pm).tz_localize('Europe/Oslo')
+        time_gap_night = ten_pm - day_last
+
+        # the frequency of measured data is not constant
+        # find a suitable frequency: time_diff_str
+        time_diff = day.index.to_series().diff().dt.round(freq="min")
         time_diff_mode = time_diff.mode().astype('timedelta64[m]')
-        #make a function and make it a list comprehension
-        #def timeintervall
-        #i = 0
-        #timesteps = []
-        #for i in day.index() :
-            #if day.index(i+1) - day.index(i) > 22 :
-                # i+=1
-            #elif day.index(i) == False : eller no sånt
-                #break
-            #else :
-                # timesteps.append(day.index(i+1) - day.index(i))
-                # i +=1
-        #return timeintervall.mean()
 
-        # resample data
-        day_resamp = day.resample(time_diff_mode).first()
+        if int(time_diff_mode) > 30:
+            time_diff_str = "15min"
+        else:
+            time_diff_str = str(int(time_diff_mode)) + "min"
+
+        # in case of empty or almost empty dataframe
+        # (0-1 measurements) add NaN to missing values at 7:00 and 22:00
+        if len(day.index) < 2:
+            day = day.append(pd.DataFrame(index=[seven_am])).sort_index()
+            day = day.append(pd.DataFrame(index=[ten_pm])).sort_index()
+            time_diff_str = "15min"
+        # add NaN to missing values between 7:00 and 22:00
+        if time_gap_morning.seconds/60 > int(time_diff_mode):
+            day = day.append(pd.DataFrame(index=[seven_am])).sort_index()
+        if time_gap_night.seconds/60 > int(time_diff_mode):
+            day = day.append(pd.DataFrame(index=[ten_pm])).sort_index()
+        day_resamp = day.resample(time_diff_str).first()
         print(day_resamp)
 
         # # load wind data file from local disk
