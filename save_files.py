@@ -5,8 +5,8 @@ from tqdm import tqdm
 from datetime import datetime
 
 # set period for loading wind data
-startDate = '1/25/2018'
-endDate = '1/25/2018'
+startDate = '3/25/2018'
+endDate = '3/25/2018'
 
 # set station (place) for loading wind data
 station = '3'
@@ -53,14 +53,14 @@ with tqdm(total=len(dates)) as pbar:
         df = df.sort_index()
 
         # create a subset of day (exclude night)
-        day = pd.DataFrame(data=df.between_time('06:59', '22:00'))
+        day = pd.DataFrame(data=df.between_time('07:00', '22:00'))
 
         # some preparing for resampling data
         # read time for the first measurement and compare to 7:00
         day_first = day.first_valid_index()
         if day_first == None:
             day_first = pd.to_datetime(seven)
-        print(day_first)
+
         #seven_am = datetime(day_first.year, day_first.month, day_first.day, 7, 0, 0)
         #seven_am = pd.to_datetime(seven_am).tz_localize('Europe/Oslo')
         time_gap_morning = day_first - seven
@@ -69,6 +69,7 @@ with tqdm(total=len(dates)) as pbar:
         day_last = day.last_valid_index()
         if day_last == None:
             day_last = pd.to_datetime(ten)
+
         #ten_pm = datetime(day_last.year, day_last.month, day_last.day, 22, 0, 0)
         #ten_pm = pd.to_datetime(ten_pm).tz_localize('Europe/Oslo')
         time_gap_night = ten - day_last
@@ -89,12 +90,14 @@ with tqdm(total=len(dates)) as pbar:
             #day = day.append(pd.DataFrame(index=[seven_am])).sort_index()
             #day = day.append(pd.DataFrame(index=[ten_pm])).sort_index()
             time_diff_str = "15min"
+
         # add NaN to missing values between 7:00 and 22:00
         if time_gap_morning.seconds/60 > int(time_diff_mode):
-            day = day.append(pd.DataFrame(index=[seven_am])).sort_index()
+            day = day.append(pd.DataFrame({'StationID': [station]}, index=[seven])).sort_index()
         if time_gap_night.seconds/60 > int(time_diff_mode):
-            day = day.append(pd.DataFrame(index=[ten_pm])).sort_index()
+            day = day.append(pd.DataFrame({'StationID': [station]}, index=[ten])).sort_index()
         day_resamp = day.resample(time_diff_str).first()
+        day_resamp['StationID'] = station
         print(day_resamp)
 
         # # load wind data file from local disk
